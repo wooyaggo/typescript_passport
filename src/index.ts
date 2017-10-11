@@ -1,19 +1,37 @@
-import * as http from 'http';
+import * as passport from 'passport';
 
-const app = http.createServer( onRequest );
-
-function onRequest( $req: http.IncomingMessage, $res: http.ServerResponse ): void{
-	console.log( 'request : ', $req.url );
-
-	$res.writeHead( 200 );
-	$res.write( JSON.stringify( { result: "OK" } ) );
-	$res.end();
+function serializeUser( $user: any, $done: ( $err: any, $user_id: string ) => void ): void{
+	$done( null, $user.user_id );
 }
 
-const PORT = 1234;
-
-app.listen( PORT, onServer );
-
-function onServer(): void{
-	console.log( "Listening on : " + PORT );
+function deserializeUser( $user_id: string, $done: ( $err: any, $user: any ) => void ): void{
+	$done( null, { user_id: $user_id } );
 }
+
+passport.serializeUser( serializeUser );
+passport.deserializeUser( deserializeUser );
+
+import * as Express from 'express';
+import * as ExpressSession from 'express-session';
+
+const app = Express();
+app.use( ExpressSession( { secret: "test" } ) );
+app.use( passport.initialize() );
+app.use( passport.session() );
+app.get( "/", ( $req: Express.Request, $res: Express.Response ): void =>{
+	$res.json( { user: $req.user } );
+})
+app.get( "/login/:user_id", ( $req: Express.Request, $res: Express.Response ): void => {
+	$req.login( { user_id: $req.params.user_id }, ( $err: any ): void =>{
+		$res.json( { result: "login success", user: $req.user } );
+	} )
+})
+app.get( "/logout", ( $req: Express.Request, $res: Express.Response ): void => {
+	$req.logout();
+
+	$res.json( { result: "logout success", user: $req.user } );
+})
+
+app.listen( 80, (): void =>{
+	console.log( 'Listen~' );
+} );
